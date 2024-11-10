@@ -1,81 +1,71 @@
 import tkinter as tk
-import random
-import pyttsx3
-import speech_recognition as sr
+from tkinter import ttk
 
-# Set up the main Tkinter window
-window = tk.Tk()
-window.title("Dubai Airport Ground Simulation")
-window.geometry("1000x700")
+class AircraftOrderApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Aircraft Strip Tracker")
 
-canvas = tk.Canvas(window, bg="black", width=1000, height=700)
-canvas.pack()
+        # Entry for aircraft callsign
+        self.callsign_label = tk.Label(root, text="Aircraft Callsign:")
+        self.callsign_label.grid(row=0, column=0, padx=5, pady=5)
+        self.callsign_entry = tk.Entry(root)
+        self.callsign_entry.grid(row=0, column=1, padx=5, pady=5)
 
-# Basic Dubai Airport ground layout (simplified version, full layout needs more taxiways and gates)
-# Drawing gates, taxiways, and runways here
-canvas.create_line(200, 650, 800, 650, fill="white", width=2)  # Main runway
-canvas.create_line(250, 600, 750, 600, fill="white", width=2)  # Parallel taxiway
-canvas.create_rectangle(150, 500, 850, 700, outline="white", width=1)  # Airport boundary
+        # Dropdown for flight phase
+        self.phase_label = tk.Label(root, text="Flight Phase:")
+        self.phase_label.grid(row=1, column=0, padx=5, pady=5)
+        self.phase_var = tk.StringVar(value="Select Phase")
+        self.phase_dropdown = ttk.Combobox(root, textvariable=self.phase_var)
+        self.phase_dropdown['values'] = ("IFR", "VFR", "Taxi", "Push")
+        self.phase_dropdown.grid(row=1, column=1, padx=5, pady=5)
 
-# Define gates
-gates = [(random.randint(150, 850), random.randint(500, 650)) for _ in range(5)]
-for x, y in gates:
-    canvas.create_oval(x-5, y-5, x+5, y+5, fill="cyan")  # Gate marker
+        # Submit button
+        self.submit_button = tk.Button(root, text="Add Aircraft Strip", command=self.add_aircraft_strip)
+        self.submit_button.grid(row=2, column=0, columnspan=2, padx=5, pady=5)
 
-# Initialize text-to-speech
-engine = pyttsx3.init()
+        # Frame to display aircraft strips
+        self.strips_frame = tk.Frame(root)
+        self.strips_frame.grid(row=3, column=0, columnspan=2, padx=5, pady=5, sticky="nsew")
 
-# Plane class for grounded aircraft
-class Plane:
-    def __init__(self, canvas, x, y, callsign):
-        self.canvas = canvas
-        self.callsign = callsign
-        self.id = canvas.create_oval(x, y, x + 10, y + 10, fill="green")
-        self.x, self.y = x, y
+    def add_aircraft_strip(self):
+        callsign = self.callsign_entry.get().strip()
+        phase = self.phase_var.get()
 
-    def request_permission(self):
-        # Simulates the plane calling up for taxi clearance
-        engine.say(f"{self.callsign} requesting taxi clearance.")
-        engine.runAndWait()
-    
-    def receive_instruction(self, instruction):
-        # Plane reads back instruction
-        engine.say(f"{self.callsign}, roger. {instruction}")
-        engine.runAndWait()
+        # Check if both callsign and phase are provided
+        if callsign and phase != "Select Phase":
+            # Create a frame for the strip
+            strip_frame = tk.Frame(self.strips_frame, relief="raised", bd=2, padx=5, pady=5, bg="lightgrey")
+            strip_frame.pack(fill="x", pady=2)
 
-# Create planes at gates
-planes = [Plane(canvas, x, y, f"Flight {1000+i}") for i, (x, y) in enumerate(gates)]
+            # Callsign and phase label
+            callsign_label = tk.Label(strip_frame, text=f"{callsign} - {phase}", font=("Arial", 12, "bold"), bg="lightgrey")
+            callsign_label.grid(row=0, column=0, padx=5)
 
-# Recognize user instruction using speech recognition
-def get_user_instruction():
-    recognizer = sr.Recognizer()
-    with sr.Microphone() as source:
-        print("Listening for instruction...")
-        audio = recognizer.listen(source)
-        try:
-            instruction = recognizer.recognize_google(audio)
-            print(f"Instruction received: {instruction}")
-            return instruction
-        except sr.UnknownValueError:
-            print("Could not understand audio")
-            return None
-        except sr.RequestError:
-            print("Error with the speech recognition service")
-            return None
+            # Scratchpad entry
+            scratchpad_entry = tk.Entry(strip_frame, width=20)
+            scratchpad_entry.grid(row=0, column=1, padx=5)
 
-# Simulate plane requesting instructions
-def start_communications():
-    for plane in planes:
-        plane.request_permission()
-        instruction = get_user_instruction()
-        if instruction:
-            plane.receive_instruction(instruction)
+            # Checkbox to clear the strip
+            clear_var = tk.BooleanVar()
+            clear_check = tk.Checkbutton(
+                strip_frame, text="Clear", variable=clear_var,
+                command=lambda: self.remove_strip(clear_var, strip_frame)
+            )
+            clear_check.grid(row=0, column=2, padx=5)
+
+            # Clear the entry and reset the dropdown
+            self.callsign_entry.delete(0, tk.END)
+            self.phase_var.set("Select Phase")
         else:
-            engine.say("Please repeat the instruction.")
-            engine.runAndWait()
+            tk.messagebox.showwarning("Input Error", "Please enter a callsign and select a flight phase.")
 
-# Start communication sequence
-start_communications()
+    def remove_strip(self, clear_var, strip_frame):
+        """Remove the strip frame if the checkbox is selected."""
+        if clear_var.get():
+            strip_frame.pack_forget()
 
-# Run the Tkinter main loop
-window.mainloop()
+# Run the application
+root = tk.Tk()
+app = AircraftOrderApp(root)
+root.mainloop()
